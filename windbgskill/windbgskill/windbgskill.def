@@ -1,0 +1,8 @@
+; windbgskill.def
+; Explicit export table - prevents C++ name mangling on the three symbols
+; that WinDbg looks up by exact name when loading the extension DLL.
+
+EXPORTS
+    DebugExtensionInitialize
+    DebugExtensionUninitialize
+    windbgskill
