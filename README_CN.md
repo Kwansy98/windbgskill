@@ -28,7 +28,15 @@
 
 ```
 .load C:\path\to\windbgskill.dll
+
+; 默认：监听 127.0.0.1:9090（仅本机访问）
+!windbgskill start
+
+; 仅指定端口（仍绑定到 127.0.0.1）
 !windbgskill start 9090
+
+; 指定 IP 和端口（使用 0.0.0.0 可允许其他机器远程访问）
+!windbgskill start 0.0.0.0 9090
 ```
 
 ```

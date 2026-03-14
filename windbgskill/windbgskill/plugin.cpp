@@ -5,7 +5,9 @@
 //
 // WinDbg usage:
 //   .load C:\path\to\windbgskill.dll
-//   !windbgskill start 9090      <- start HTTP server on port 9090
+//   !windbgskill start           <- start on 127.0.0.1:9090 (defaults)
+//   !windbgskill start 9090      <- start on 127.0.0.1:9090
+//   !windbgskill start 0.0.0.0 9090  <- start on all interfaces, port 9090
 //   !windbgskill stop
 //   !windbgskill status
 //
@@ -92,6 +94,7 @@ static ExecInfo g_ExecInfo;
 static std::unique_ptr<httplib::Server> g_HttpServer;
 static std::thread                       g_HttpThread;
 static std::atomic<int>                  g_HttpPort{ 0 };
+static std::string                       g_HttpIp;
 
 // ---------------------------------------------------------------
 // Minimal JSON helpers (no external dependency)
@@ -437,10 +440,28 @@ HRESULT CALLBACK windbgskill(PDEBUG_CLIENT Client, PCSTR Args)
         }
 
         int port = 9090;
+        std::string ip = "127.0.0.1";
         if (!rest.empty()) {
-            try { port = std::stoi(rest); }
-            catch (...) {
-                Print("[windbgskill] Invalid port '%s', using 9090\n", rest.c_str());
+            const auto sp2 = rest.find(' ');
+            std::string tok1 = rest.substr(0, sp2);
+            std::string tok2 = (sp2 != std::string::npos) ? rest.substr(sp2 + 1) : "";
+            while (!tok2.empty() && tok2.front() == ' ') tok2.erase(tok2.begin());
+
+            if (tok1.find('.') != std::string::npos) {
+                // First token contains '.' → treat as IP address
+                ip = tok1;
+                if (!tok2.empty()) {
+                    try { port = std::stoi(tok2); }
+                    catch (...) {
+                        Print("[windbgskill] Invalid port '%s', using 9090\n", tok2.c_str());
+                    }
+                }
+            } else {
+                // Pure number → treat as port (backward-compatible)
+                try { port = std::stoi(tok1); }
+                catch (...) {
+                    Print("[windbgskill] Invalid argument '%s', using defaults\n", tok1.c_str());
+                }
             }
         }
 
@@ -473,16 +494,17 @@ HRESULT CALLBACK windbgskill(PDEBUG_CLIENT Client, PCSTR Args)
         g_HttpServer = std::make_unique<httplib::Server>();
         SetupRoutes(*g_HttpServer);
         g_HttpPort.store(port);
+        g_HttpIp = ip;
 
-        g_HttpThread = std::thread([port]()
+        g_HttpThread = std::thread([ip, port]()
         {
-            g_HttpServer->listen("127.0.0.1", port);
+            g_HttpServer->listen(ip.c_str(), port);
         });
         g_HttpThread.detach();
 
         Sleep(200);  // give the server time to bind the socket
 
-        Print("[windbgskill] HTTP server started on http://127.0.0.1:%d\n", port);
+        Print("[windbgskill] HTTP server started on http://%s:%d\n", ip.c_str(), port);
 
         if (ctrl) ctrl->Release();
         return S_OK;

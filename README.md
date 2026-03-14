@@ -28,7 +28,15 @@ Pre-built binaries are on the Releases page (`windbgskill64.dll` for x64, `windb
 
 ```
 .load C:\path\to\windbgskill.dll
+
+# Default: listen on 127.0.0.1:9090 (local access only)
+!windbgskill start
+
+# Specify port only (still binds to 127.0.0.1)
 !windbgskill start 9090
+
+# Specify IP and port (use 0.0.0.0 to allow access from another machine)
+!windbgskill start 0.0.0.0 9090
 ```
 
 ```

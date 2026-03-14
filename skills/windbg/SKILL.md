@@ -15,7 +15,15 @@ All three debug modes share the same plugin interface — the only difference is
 User loads the plugin in WinDbg once per session:
 ```
 .load windbgskill.dll
+
+# Default: listen on 127.0.0.1:9090 (local access only)
+!windbgskill start
+
+# Specify port only (still binds to 127.0.0.1)
 !windbgskill start 9090
+
+# Specify IP and port (use 0.0.0.0 to allow remote machine access)
+!windbgskill start 0.0.0.0 9090
 ```
 
 User tells you the port (e.g. "windbgskill plugin is on port 9090"):
