@@ -1,79 +1,60 @@
 # windbgskill
 
-**WinDbg HTTP Bridge** — expose WinDbg as a local REST API so AI assistants (Cursor / Claude) can programmatically drive crash dump analysis, live kernel debugging, and user-mode process debugging.
+[中文版本](READMD_CN.md)
 
-[中文文档](README_CN.md)
+The windbg skill gives AI the ability to execute WinDbg commands. Typical use cases include kernel debugging, user-mode process debugging, and crash dump analysis.
 
----
+## Installation
 
-## What is this?
+The skill file in this repository is located at `skills/windbg/SKILL.md`. Place it in the matching directory for your agent tool:
 
-`windbgskill` is a WinDbg extension DLL that starts a lightweight HTTP server inside WinDbg. Once loaded, an AI assistant can send WinDbg commands, read their output, and control execution flow — all without touching the WinDbg UI.
 
-Supported scenarios:
+| Tool               | Path                               |
+| ------------------ | ---------------------------------- |
+| Cursor             | `.cursor/skills/windbg/SKILL.md`   |
+| Claude Code        | `.claude/skills/windbg/SKILL.md`   |
+| Codex              | `.codex/skills/windbg/SKILL.md`    |
+| OpenCode           | `.opencode/skills/windbg/SKILL.md` |
+| Other agents tools | `.agents/skills/windbg/SKILL.md`   |
 
-| Scenario | Examples |
-|----------|---------|
-| **Crash dump analysis** | Process crash dumps (`.dmp`, `.mdmp`), kernel BSOD dumps |
-| **Live kernel debugging** | KDNET, serial, EXDI, local kernel |
-| **User-mode debugging** | Attach to process, application hang / crash |
 
-## Quick Start
+Make sure `curl.exe` is available in `PATH`, otherwise you need to tell the AI to use another equivalent way to access the HTTP endpoint.
 
-### 1. Get the DLL
+## Usage
 
-Pre-built binaries are on the Releases page (`windbgskill64.dll` for x64, `windbgskill.dll` for x86). To build from source, open `windbgskill/windbgskill.sln` in Visual Studio 2019+ and build Release x64.
+Run the following commands in WinDbg:
 
-### 2. Load the plugin in WinDbg
-
-```
-.load C:\path\to\windbgskill.dll
-
-# Default: listen on 127.0.0.1:9090 (local access only)
-!windbgskill start
-
-# Specify port only (still binds to 127.0.0.1)
-!windbgskill start 9090
-
-# Specify IP and port (use 0.0.0.0 to allow access from another machine)
-!windbgskill start 0.0.0.0 9090
+```text
+.load D:\Tools\windbgskill\x64\Release\windbgskill.dll
+!windbgskill start 6655
 ```
 
-```
-!windbgskill status   ; check whether the server is running
-!windbgskill stop     ; shut down the HTTP server
-```
+Expected output:
 
-### 3. Tell your AI assistant the port
-
-> "windbgskill plugin is running on port 9090"
-
-The AI will take it from there. Make sure `curl.exe` is in your `PATH`.
-
-## Deploy the AI Skill
-
-This repo ships a Cursor Agent Skill at `skills/windbg/SKILL.md` that teaches the AI how to use the plugin (state machine, timeouts, scenario detection, etc.).
-
-### Cursor
-
-Copy `skills/windbg/SKILL.md` into your project at:
-
-```
-your-project/
-└── .cursor/
-    └── skills/
-        └── windbg/
-            └── SKILL.md
+```text
+[windbgskill] HTTP server started on http://127.0.0.1:6655
 ```
 
-### Claude (claude.ai Projects / Claude Desktop)
+To allow connections from another host, specify the IP explicitly:
 
-Paste the contents of `skills/windbg/SKILL.md` into your Project instructions or custom instructions.
+```text
+!windbgskill start 192.168.1.10 6655
+```
 
----
+Then tell the agent directly:
 
-See [`skills/windbg/examples/`](skills/windbg/examples/) for real-world debugging sessions.
+```text
+windbg skill is ready on port 6655, please use windbg skill to analyze this dump.
+```
 
-## License
+Or:
 
-MIT
+```text
+windbg skill is ready on port 6655, please use windbg skill to debug this kernel.
+```
+
+## Examples
+
+![](vscodeimages/2026-04-14-20-49-13.png)
+
+![](vscodeimages/2026-04-14-20-51-34.png)
