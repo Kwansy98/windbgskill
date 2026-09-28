@@ -18,10 +18,22 @@ windbg skill 给AI提供执行windbg命令的能力，适用场景包括但不�
 
 ## 用法
 
-在 WinDbg 中执行：
+### 崩溃转储分析
+
+使用一条命令打开转储并初始化 HTTP bridge：
+
+```powershell
+WinDbgX.exe -z "pathtodmp" -c ".load D:\All\project\mycode\windbgskill\windbgskill\x64\Release\windbgskill.dll; !windbgskill start 127.0.0.1 23333"
+```
+
+将 `pathtodmp` 替换为转储文件的绝对路径。`.load` 也必须接收 `windbgskill.dll` 的绝对路径；只传文件名会依赖 WinDbg 的扩展查找规则，并可能报错 `0x80070002`。
+
+### 已打开的调试会话
+
+对于已经打开的实时内核或用户态调试会话，在 WinDbg 中执行：
 
 ```text
-.load D:\Tools\windbgskill\x64\Release\windbgskill.dll
+.load D:\All\project\mycode\windbgskill\windbgskill\x64\Release\windbgskill.dll
 !windbgskill start 6655
 ```
 

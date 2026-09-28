@@ -22,10 +22,22 @@ Make sure `curl.exe` is available in `PATH`, otherwise you need to tell the AI t
 
 ## Usage
 
-Run the following commands in WinDbg:
+### Crash dump analysis
+
+Open the dump and initialize the HTTP bridge in one command:
+
+```powershell
+WinDbgX.exe -z "pathtodmp" -c ".load D:\All\project\mycode\windbgskill\windbgskill\x64\Release\windbgskill.dll; !windbgskill start 127.0.0.1 23333"
+```
+
+Replace `pathtodmp` with the dump's absolute path. `.load` must receive the absolute path to `windbgskill.dll`; passing only the filename depends on WinDbg's extension lookup and can fail with `0x80070002`.
+
+### Existing debug session
+
+For an already-open live kernel or user-mode session, run the following commands in WinDbg:
 
 ```text
-.load D:\Tools\windbgskill\x64\Release\windbgskill.dll
+.load D:\All\project\mycode\windbgskill\windbgskill\x64\Release\windbgskill.dll
 !windbgskill start 6655
 ```
 

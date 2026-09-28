@@ -6,15 +6,30 @@ description: Control WinDbg via HTTP REST API for three scenarios - dump analysi
 # WinDbg HTTP Bridge
 
 Controls WinDbg through `windbgskill.dll`, exposing a local HTTP server.
-The user loads the plugin once per session; you communicate via HTTP (curl, curl.exe, Python, or any HTTP client).
+For dump analysis, launch WinDbgX with the dump and bridge initialization in one command. For an existing interactive debug session, load and start the bridge in that session. After initialization, communicate via HTTP (curl, curl.exe, Python, or any HTTP client).
 
 All three debug modes share the same plugin interface — the only difference is which WinDbg commands you send.
 
 ## Quick Start
 
-User loads the plugin in WinDbg once per session:
+### Open a dump
+
+When the user provides a dump path and the bridge is not already running, open the dump and initialize the bridge in the same WinDbgX invocation:
+
+```powershell
+WinDbgX.exe -z "pathtodmp" -c ".load D:\All\project\mycode\windbgskill\windbgskill\x64\Release\windbgskill.dll; !windbgskill start 127.0.0.1 23333"
 ```
-.load windbgskill.dll
+
+Replace `pathtodmp` with the dump's absolute path. The DLL passed to `.load` must also be an absolute path; passing only the filename can fail because WinDbg does not reliably resolve extensions from `PATH` or its extension search path. If the DLL is installed elsewhere, resolve that file first and substitute its absolute path. Use port `23333` unless the user has selected another port.
+
+This single command is the dump-opening workflow: `-z` opens the dump and `-c` loads the extension and starts the HTTP bridge after WinDbg initializes.
+
+### Initialize an existing debug session
+
+For an already-open live kernel or user-mode session, run the commands inside WinDbg, still using the DLL's absolute path:
+
+```
+.load D:\All\project\mycode\windbgskill\windbgskill\x64\Release\windbgskill.dll
 
 # Default: listen on 127.0.0.1:9090 (local access only)
 !windbgskill start
@@ -41,7 +56,7 @@ curl.exe -s -X POST http://127.0.0.1:9090/api/exec -d "!analyze -v"
 |-------|---------|--------|
 | `broken` | Target paused, debugger prompt active | Send commands freely |
 | `running` | Target executing | Call `/api/break` first |
-| `no_target` | No debug session open | Ask user to open dump or attach |
+| `no_target` | No debug session open | If a dump path is available, launch it with the WinDbgX command above; otherwise ask the user which target to attach |
 | `stepping` | Single-step mode | Treat same as `broken` |
 
 State transitions: `running` → **POST /api/break** → `broken` → **POST /api/go** → `running`
@@ -168,15 +183,18 @@ curl.exe -s -X POST http://127.0.0.1:{PORT}/api/shutdown
 ### Crash dump analysis
 
 ```powershell
-# 1. Confirm state (dump loads in broken state)
-curl.exe -s http://127.0.0.1:{PORT}/api/status
+# 1. If the bridge is not running yet, open the dump and initialize it in one command
+WinDbgX.exe -z "pathtodmp" -c ".load D:\All\project\mycode\windbgskill\windbgskill\x64\Release\windbgskill.dll; !windbgskill start 127.0.0.1 23333"
 
-# 2. Automated analysis (can take 60-120 s if downloading symbols)
-curl.exe -s -X POST "http://127.0.0.1:{PORT}/api/exec?timeout=180" -d "!analyze -v"
+# 2. Confirm state (a loaded dump is in broken state)
+curl.exe -s http://127.0.0.1:23333/api/status
 
-# 3. Switch to faulting context and inspect stack
-curl.exe -s -X POST http://127.0.0.1:{PORT}/api/exec -d ".ecxr"
-curl.exe -s -X POST http://127.0.0.1:{PORT}/api/exec -d "k"
+# 3. Automated analysis (can take 60-120 s if downloading symbols)
+curl.exe -s -X POST "http://127.0.0.1:23333/api/exec?timeout=180" -d "!analyze -v"
+
+# 4. Switch to faulting context and inspect stack
+curl.exe -s -X POST http://127.0.0.1:23333/api/exec -d ".ecxr"
+curl.exe -s -X POST http://127.0.0.1:23333/api/exec -d "k"
 ```
 
 ### Live kernel debugging
@@ -215,6 +233,8 @@ curl.exe -s -X POST http://127.0.0.1:{PORT}/api/go
 ## Rules
 
 - Use any available HTTP client (curl, curl.exe, Python requests, etc.).
+- For a dump that is not open yet, use `WinDbgX.exe -z "pathtodmp" -c ".load <absolute-dll-path>; !windbgskill start 127.0.0.1 <port>"`; never split dump opening and bridge initialization into unrelated manual steps.
+- Always pass `.load` an absolute DLL path. Do not rely on `PATH`, the current directory, or WinDbg's extension search path.
 - `/api/exec` body is plain text — send the WinDbg command directly, no JSON wrapping.
 - Slow commands (`!analyze -v`, `.reload /f`, symbol downloads): append `?timeout=180`; default is 60 s.
 - `/api/exec` returns HTTP 409 if target is running — call `/api/break` first.
